@@ -1,0 +1,25 @@
+{
+  "name": "herdr-web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A real browser window floating over a herdr pane, drivable over CDP.",
+  "main": "main.js",
+  "bin": {
+    "herdr-web": "bin/herdr-web"
+  },
+  "scripts": {
+    "build-helper": "swiftc -O hostwatch.swift -o bin/hostwatch || (echo 'building bin/hostwatch needs the Xcode command line tools: xcode-select --install' >&2; exit 1)",
+    "postinstall": "npm run build-helper",
+    "test": "node test/toolbar.js"
+  },
+  "dependencies": {
+    "electron": "44.5.1"
+  },
+  "devDependencies": {
+    "playwright-core": "1.63.0"
+  },
+  "license": "MIT",
+  "os": [
+    "darwin"
+  ]
+}

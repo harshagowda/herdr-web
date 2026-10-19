@@ -1,0 +1,86 @@
+#!/usr/bin/env node
+// herdr-web CLI: talks to the herdr-web app on 127.0.0.1, starting it on first `open`.
+const http = require('http');
+const path = require('path');
+const fs = require('fs');
+const { spawn, execFileSync } = require('child_process');
+
+const PORT = Number(process.env.HERDR_WEB_PORT || 9338);
+const ROOT = path.join(__dirname, '..');
+const USAGE = `usage:
+  herdr-web open --pane <pane_id> [--id name] <url>
+  herdr-web goto [--id name] <url>
+  herdr-web eval [--id name] <js>
+  herdr-web screenshot [--id name] --out <file.png>
+  herdr-web list | cdp-url | quit
+  herdr-web close [--id name]`;
+
+function parse(argv) {
+  const opts = {};
+  const rest = [];
+  for (let i = 0; i < argv.length; i += 1) {
+    if (argv[i].startsWith('--')) opts[argv[i].slice(2)] = argv[(i += 1)];
+    else rest.push(argv[i]);
+  }
+  return { opts, rest };
+}
+
+function call(name, body) {
+  return new Promise((resolve, reject) => {
+    const req = http.request({ host: '127.0.0.1', port: PORT, path: `/${name}`, method: 'POST' }, (res) => {
+      let out = '';
+      res.on('data', (d) => { out += d; });
+      res.on('end', () => resolve(JSON.parse(out)));
+    });
+    req.on('error', reject);
+    req.end(JSON.stringify(body));
+  });
+}
+
+/** Builds the Swift helper when npm install did not, e.g. after a git pull. */
+function ensureHelper() {
+  const out = path.join(ROOT, 'bin/hostwatch');
+  if (fs.existsSync(out)) return;
+  try {
+    execFileSync('swiftc', ['-O', path.join(ROOT, 'hostwatch.swift'), '-o', out], { stdio: 'inherit' });
+  } catch {
+    throw new Error('could not build bin/hostwatch: install the Xcode command line tools (xcode-select --install), then run npm run build-helper');
+  }
+}
+
+async function startApp() {
+  ensureHelper();
+  const log = fs.openSync(path.join(ROOT, 'herdr-web.log'), 'a');
+  const child = spawn(require(path.join(ROOT, 'node_modules/electron')), [ROOT], {
+    detached: true, stdio: ['ignore', log, log],
+  });
+  child.unref();
+  fs.writeFileSync(path.join(ROOT, 'herdr-web.pid'), String(child.pid));
+  for (let i = 0; i < 50; i += 1) {
+    await new Promise((r) => setTimeout(r, 200));
+    try { await call('list', {}); return; } catch { /* not up yet */ }
+  }
+  throw new Error('herdr-web app did not start; see herdr-web.log');
+}
+
+async function main() {
+  const [cmd, ...args] = process.argv.slice(2);
+  const { opts, rest } = parse(args);
+  const body = { ...opts };
+  if (cmd === 'open' || cmd === 'goto') body.url = rest[0];
+  if (cmd === 'eval') body.js = rest.join(' ');
+  if (cmd === 'screenshot' && opts.out) body.out = path.resolve(opts.out);
+  if (!cmd || cmd === 'help' || cmd === '--help') { console.log(USAGE); return; }
+  let reply;
+  try {
+    reply = await call(cmd, body);
+  } catch (e) {
+    if (cmd !== 'open') { console.error('herdr-web app is not running; use open first'); process.exit(1); }
+    await startApp();
+    reply = await call(cmd, body);
+  }
+  if (!reply.ok) { console.error(reply.error); process.exit(1); }
+  console.log(JSON.stringify(reply.result, null, 2));
+}
+
+main().catch((e) => { console.error(e.message); process.exit(1); });

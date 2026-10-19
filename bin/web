@@ -1,0 +1,16 @@
+#!/bin/bash
+# Opens a new herdr tab in the focused workspace with a herdr-web browser in it.
+# Usage: web [url]   (default: $HERDR_WEB_HOME_URL, else https://www.google.com/)
+set -euo pipefail
+H="${HERDR_BIN:-$(command -v herdr || true)}"
+if [ -z "$H" ]; then echo "web: herdr not found on PATH; set HERDR_BIN" >&2; exit 1; fi
+export HERDR_BIN="$H"
+self="$(readlink -f "$0" 2>/dev/null || echo "$0")"
+root="$(cd "$(dirname "$self")/.." && pwd)"
+url="${1:-${HERDR_WEB_HOME_URL:-https://www.google.com/}}"
+ws=$("$H" workspace list | grep -o '"focused":true[^}]*"workspace_id":"[^"]*"' | grep -o 'w[0-9]*"$' | tr -d '"')
+created=$("$H" tab create --workspace "$ws" --label web)
+pane=$(echo "$created" | grep -o '"pane_id":"[^"]*"' | head -1 | cut -d'"' -f4)
+tab=$(echo "$created" | grep -o '"tab_id":"[^"]*"' | head -1 | cut -d'"' -f4)
+"$H" tab focus "$tab" >/dev/null
+"$root/bin/herdr-web" open --pane "$pane" --id "web-${pane//:/-}" "$url"

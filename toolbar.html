@@ -1,0 +1,12 @@
+<!doctype html><meta charset="utf-8"><style>
+body{margin:0;height:30px;display:flex;gap:4px;align-items:center;padding:0 6px;
+background:#2b2d31;font:13px -apple-system,sans-serif;overflow:hidden}
+button{background:none;border:0;color:#ddd;font-size:15px;width:24px;cursor:pointer}
+button:hover{color:#fff}input{flex:1;height:20px;border:0;border-radius:4px;padding:0 8px;
+background:#1e1f22;color:#eee;font:12px ui-monospace,monospace}</style>
+<button id=b title=Back>&#8592;</button><button id=f title=Forward>&#8594;</button>
+<button id=r title=Reload>&#8635;</button><input id=u spellcheck=false>
+<script>const {ipcRenderer:ipc}=require('electron');
+for (const k of ['b','f','r']) document.getElementById(k).onclick=()=>ipc.send('nav',k);
+u.onkeydown=(e)=>{if(e.key==='Enter'){ipc.send('nav','go',u.value);u.blur();}};
+ipc.on('url',(_,v)=>{if(document.activeElement!==u)u.value=v;});</script>
