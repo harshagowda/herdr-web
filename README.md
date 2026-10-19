@@ -4,6 +4,8 @@ herdr-web gives [herdr](https://herdr.dev) a web tab. It opens a real Chromium w
 
 It works on macOS only.
 
+![herdr-web: opening, switching and closing web tabs in herdr](demo.gif)
+
 ## Requirements
 
 - macOS
@@ -14,12 +16,12 @@ It works on macOS only.
 ## Install
 
 ```bash
-git clone <this repo> herdr-web
-cd herdr-web
+git clone https://github.com/harshagowda/herdr-web.git ~/herdr-web
+cd ~/herdr-web
 npm install
 ```
 
-`npm install` downloads Electron and builds the small Swift helper `bin/hostwatch`. If the helper is missing later, the CLI builds it again on the next start.
+You do not install Electron yourself. It is a normal npm dependency, so `npm install` fetches it into `node_modules/` together with everything else, and builds the small Swift helper `bin/hostwatch`. If the helper is missing later, the CLI builds it again on the next start.
 
 Open a browser in a new herdr tab:
 
@@ -31,7 +33,7 @@ The first command starts the app in the background, and the very first start may
 
 ## herdr keybinding
 
-Add this to `~/.config/herdr/config.toml`, with your own path to the repo:
+Add this to `~/.config/herdr/config.toml`, then run `herdr server reload-config`. ctrl+b then i opens a web tab:
 
 ```toml
 [ui]
@@ -40,7 +42,8 @@ prompt_new_tab_name = false
 [[keys.command]]
 key = "prefix+i"
 type = "shell"
-command = "/path/to/herdr-web/bin/web"
+command = "~/herdr-web/bin/web"
+description = "open a web tab"
 ```
 
 `prompt_new_tab_name = false` is recommended because herdr opens its tab name prompt in the middle of the screen, and the browser floats on top of it, so you would be typing into a prompt you cannot see.
