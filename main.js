@@ -152,10 +152,34 @@ function attachPage(b, load) {
   b.win.contentView.addChildView(b.view);
   layoutPage(b.win, b.view);
   b.page = b.view.webContents;
+  allowPopups(b.win, b.page);
   const showUrl = () => b.win.webContents.send('url', b.page.getURL());
   b.page.on('did-navigate', showUrl);
   b.page.on('did-navigate-in-page', showUrl);
   return load(b.page);
+}
+
+/**
+ * Opens window.open popups (e.g. "Sign in with Google") as framed child windows centred over the
+ * browser and above it; a default popup sits at normal level, behind the floating browser window.
+ * Allowed rather than replaced, so the popup keeps window.opener and the same session.
+ */
+function allowPopups(win, page) {
+  page.setWindowOpenHandler(() => ({ action: 'allow', overrideBrowserWindowOptions: { parent: win, frame: true, show: false } }));
+  page.on('did-create-window', (popup) => {
+    const centre = () => {
+      if (popup.isDestroyed()) return;
+      const p = win.getBounds(), { width, height } = popup.getBounds(); // size from the page's window.open features
+      popup.setPosition(Math.round(p.x + (p.width - width) / 2), Math.round(p.y + Math.max(0, (p.height - height) / 2)));
+    };
+    centre();
+    win.on('resize', centre); // a popup opened on load comes before the browser is placed over its pane
+    popup.on('closed', () => win.off('resize', centre));
+    popup.setAlwaysOnTop(true, 'floating', 1); // one step above the browser's own floating level
+    popup.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true, skipTransformProcessType: true }); // else it opens on another Space than a full-screen terminal
+    // Keyboard focus only when the user is in this browser (clicked "Sign in"), never taken from the terminal.
+    if (win.isFocused()) { popup.show(); popup.focus(); } else popup.showInactive();
+  });
 }
 
 /** Runs fn after any sleep or wake already running for this browser. */
